@@ -7,29 +7,37 @@
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body { background: #0d0d0d; color: #fff; font-family: sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; padding: 20px; }
-  h1 { color: #00cc44; font-size: 22px; margin-bottom: 20px; text-align: center; }
-  #status { font-size: 14px; color: #aaa; margin-bottom: 20px; text-align: center; }
-  #last-don { background: #1a1a1a; border: 2px solid #00cc44; border-radius: 12px; padding: 20px; text-align: center; width: 100%; max-width: 400px; display: none; }
-  #last-don h2 { color: #00cc44; font-size: 24px; }
-  #last-don p { color: #fff; font-size: 20px; margin-top: 8px; }
-  #last-don .comment { color: #ffdd00; font-style: italic; font-size: 16px; margin-top: 8px; }
-  #activate-btn { background: #00cc44; color: #000; font-size: 18px; font-weight: 700; padding: 16px 32px; border: none; border-radius: 12px; cursor: pointer; margin-bottom: 30px; }
-  #activated { display: none; color: #00cc44; font-size: 14px; margin-bottom: 20px; }
+  h1 { color: #00cc44; font-size: 22px; margin-bottom: 10px; text-align: center; }
   .dot { display: inline-block; width: 10px; height: 10px; background: #00cc44; border-radius: 50%; margin-right: 6px; animation: blink 1s infinite; }
   @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
+  #status { font-size: 14px; color: #aaa; margin-bottom: 30px; text-align: center; }
+  #last-don { background: #1a1a1a; border: 2px solid #00cc44; border-radius: 12px; padding: 20px; text-align: center; width: 100%; max-width: 400px; display: none; }
+  #don-name { color: #00cc44; font-size: 24px; font-weight: 700; }
+  #don-amount { color: #fff; font-size: 20px; margin-top: 8px; }
+  #don-comment { color: #ffdd00; font-style: italic; font-size: 16px; margin-top: 8px; }
+  /* Bouton invisible pour débloquer l'audio mobile au premier tap */
+  #unlock-btn { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #0d0d0d; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 20px; z-index: 999; cursor: pointer; }
+  #unlock-btn h2 { color: #00cc44; font-size: 24px; }
+  #unlock-btn p { color: #aaa; font-size: 14px; }
+  #unlock-btn button { background: #00cc44; color: #000; font-size: 20px; font-weight: 700; padding: 20px 40px; border: none; border-radius: 12px; cursor: pointer; }
 </style>
 </head>
 <body>
 
+<!-- Écran de déverrouillage audio (obligatoire sur mobile) -->
+<div id="unlock-btn" onclick="demarrer()">
+  <h2>🎙️ TTS Dons — Posty78</h2>
+  <p>Appuie une fois pour activer</p>
+  <button>🔊 Activer</button>
+</div>
+
 <h1>🎙️ TTS Dons — Posty78</h1>
-<p id="status">Appuie sur le bouton pour activer</p>
-<button id="activate-btn" onclick="activer()">🔊 Activer le TTS</button>
-<div id="activated"><span class="dot"></span> En écoute — TTS actif</div>
+<p id="status"><span class="dot"></span> En écoute — TTS actif</p>
 
 <div id="last-don">
-  <h2 id="don-name"></h2>
-  <p id="don-amount"></p>
-  <p class="comment" id="don-comment"></p>
+  <div id="don-name"></div>
+  <div id="don-amount"></div>
+  <div id="don-comment"></div>
 </div>
 
 <script type="module">
@@ -45,44 +53,38 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
-let actif = false;
 let lastCmdTs = 0;
 
-window.activer = function() {
-  actif = true;
-  document.getElementById("activate-btn").style.display = "none";
-  document.getElementById("activated").style.display = "block";
-  document.getElementById("status").textContent = "En attente de dons...";
+window.demarrer = function() {
+  document.getElementById("unlock-btn").style.display = "none";
 
-  // Test TTS pour débloquer l'audio mobile
-  const test = new SpeechSynthesisUtterance("TTS activé");
+  // Débloquer l'audio mobile avec un son silencieux
+  const test = new SpeechSynthesisUtterance(" ");
   test.lang = "fr-FR";
-  test.volume = 0;
+  test.volume = 0.01;
   speechSynthesis.speak(test);
 
-  // Écoute les dons via Firestore
+  // Écoute Firebase
   onSnapshot(doc(db, "config", "commandes"), (snap) => {
     if (!snap.exists()) return;
     const cmd = snap.data();
     if (!cmd.ts || cmd.ts <= lastCmdTs) return;
     lastCmdTs = cmd.ts;
 
-    if (cmd.type === "alerte" && actif) {
+    if (cmd.type === "alerte") {
       const name = cmd.name || "Anonyme";
-      const amount = parseFloat(cmd.amount || 0).toFixed(0);
+      const amount = parseFloat(cmd.amount || 0);
       const comment = cmd.comment || "";
+      const alerteDuration = cmd.alerteDuration || 15000;
 
-      // Afficher le don
       document.getElementById("don-name").textContent = name;
-      document.getElementById("don-amount").textContent = "€" + parseFloat(cmd.amount || 0).toFixed(2);
+      document.getElementById("don-amount").textContent = "€" + amount.toFixed(2);
       document.getElementById("don-comment").textContent = comment ? '"' + comment + '"' : "";
       document.getElementById("don-comment").style.display = comment ? "block" : "none";
       document.getElementById("last-don").style.display = "block";
 
-      // Délai pour laisser le son OBS jouer d'abord
-      const alertDuration = cmd.alerteDuration || 15000;
       setTimeout(() => {
-        const msg = name + " vient de faire un don de " + amount + " euros pour les Restaurants du Cœur !";
+        const msg = name + " vient de faire un don de " + amount.toFixed(0) + " euros pour les Restaurants du Cœur !";
         const tts = new SpeechSynthesisUtterance(msg);
         tts.lang = "fr-FR";
         tts.rate = 1;
@@ -92,7 +94,7 @@ window.activer = function() {
                    || voices[0];
         if (voixF) tts.voice = voixF;
         speechSynthesis.speak(tts);
-      }, alertDuration + 500);
+      }, alerteDuration + 500);
     }
   });
 };

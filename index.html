@@ -5,10 +5,11 @@
 <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@700&display=swap" rel="stylesheet">
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
-  body { background: transparent; overflow: hidden; font-family: 'Open Sans', sans-serif; width: 600px; height: 40px; }
+  body { background: transparent; overflow: hidden; font-family: 'Open Sans', sans-serif; }
 
   #widget {
-    position: relative;
+    position: fixed;
+    top: 0; left: 0;
     width: 600px;
     height: 40px;
     background: transparent;
@@ -32,36 +33,19 @@
     justify-content: space-between;
     align-items: center;
     padding: 0 10px;
-    gap: 6px;
   }
   #raised, #goal {
-    font-size: 13px;
-    font-weight: 700;
-    color: #fff;
-    white-space: nowrap;
+    font-size: 13px; font-weight: 700; color: #fff; white-space: nowrap; flex-shrink: 0;
     text-shadow: -2px -2px 0 #000, 2px -2px 0 #000, -2px 2px 0 #000, 2px 2px 0 #000;
-    flex-shrink: 0;
   }
   #title {
-    font-size: 13px;
-    font-weight: 700;
-    color: #fff;
-    white-space: nowrap;
+    font-size: 13px; font-weight: 700; color: #fff; white-space: nowrap; flex: 1; text-align: center;
     text-shadow: -2px -2px 0 #000, 2px -2px 0 #000, -2px 2px 0 #000, 2px 2px 0 #000;
-    flex: 1;
-    text-align: center;
   }
 
-  /* ALERTE */
   #alert {
-    position: fixed;
-    top: 50px; left: 0;
-    width: 600px;
-    display: none;
-    flex-direction: column;
-    align-items: center;
-    gap: 8px;
-    background: transparent;
+    position: fixed; top: 50px; left: 0; width: 600px;
+    display: none; flex-direction: column; align-items: center; gap: 8px; background: transparent;
   }
   #alert.show { display: flex; }
   #alert-box { background: transparent; text-align: center; padding: 8px 20px; }
@@ -80,7 +64,6 @@
     <span id="goal">€1,000.00</span>
   </div>
 </div>
-
 <div id="alert">
   <div id="alert-box">
     <div id="alert-name"></div>
@@ -101,7 +84,6 @@ const firebaseConfig = {
   projectId: "posty78-widget",
   appId: "1:735535963299:web:0b6e6277fee374529cb316"
 };
-
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
@@ -110,13 +92,58 @@ let lastDonationId = null;
 let alertActive = false;
 let alertes = [];
 
+// Écoute alertes config
 onSnapshot(doc(db, "config", "alertes"), (snap) => {
   if (snap.exists()) alertes = snap.data().liste || [];
+});
+
+// Écoute commandes temps réel depuis admin
+onSnapshot(doc(db, "config", "commandes"), (snap) => {
+  if (!snap.exists()) return;
+  const cmd = snap.data();
+
+  // Commande barre
+  if (cmd.type === "barre" && cmd.pct !== undefined) {
+    document.getElementById("bar-fill").style.width = cmd.pct + "%";
+  }
+
+  // Commande alerte test
+  if (cmd.type === "alerte" && cmd.ts) {
+    const alerte = alertes.find(a => a.id == cmd.alerteId) || alertes[0];
+    if (alerte) lancerAlerte(cmd.name || "TestDonateur", cmd.amount || 5, cmd.comment || "", alerte);
+  }
 });
 
 function getAlerte(amount) {
   const sorted = [...alertes].sort((a, b) => b.minAmount - a.minAmount);
   return sorted.find(a => amount >= a.minAmount) || null;
+}
+
+function lancerAlerte(name, amount, comment, alerte) {
+  if (alertActive) return;
+  alertActive = true;
+  document.getElementById("alert-name").textContent = name;
+  document.getElementById("alert-amount").textContent = "€" + parseFloat(amount).toFixed(2);
+  const commentEl = document.getElementById("alert-comment");
+  if (comment) { commentEl.textContent = '"' + comment + '"'; commentEl.style.display = "block"; }
+  else { commentEl.style.display = "none"; }
+  const gif = document.getElementById("alert-gif");
+  if (alerte?.gifUrl) { gif.src = alerte.gifUrl + "?" + Date.now(); gif.style.display = "block"; }
+  else { gif.style.display = "none"; }
+  const sound = document.getElementById("alert-sound");
+  const duration = alerte?.duration || 15000;
+  if (alerte?.soundUrl) { sound.src = alerte.soundUrl; sound.volume = alerte.volume || 1; sound.currentTime = 0; sound.play(); }
+  document.getElementById("alert").classList.add("show");
+  setTimeout(() => {
+    sound.pause(); sound.currentTime = 0;
+    const tts = new SpeechSynthesisUtterance(name + " vient de faire un don de " + parseFloat(amount).toFixed(0) + " euros pour les Restaurants du Cœur !");
+    tts.lang = "fr-FR"; tts.rate = 1;
+    const voices = speechSynthesis.getVoices();
+    const voixF = voices.find(v => v.lang === "fr-FR" && v.name.toLowerCase().includes("female")) || voices.find(v => v.lang === "fr-FR");
+    if (voixF) tts.voice = voixF;
+    speechSynthesis.speak(tts);
+    tts.onend = () => { document.getElementById("alert").classList.remove("show"); gif.style.display = "none"; alertActive = false; };
+  }, duration);
 }
 
 async function fetchData() {
@@ -142,42 +169,12 @@ async function checkDonations() {
     if (lastDonationId === null) { lastDonationId = latest.id; return; }
     if (latest.id !== lastDonationId) {
       lastDonationId = latest.id;
-      window.triggerAlert(latest.donor_name || "Anonyme", parseFloat(latest.amount.value), latest.donor_comment || "");
+      const amount = parseFloat(latest.amount.value);
+      const alerte = getAlerte(amount);
+      if (alerte) lancerAlerte(latest.donor_name || "Anonyme", amount, latest.donor_comment || "", alerte);
     }
   } catch(e) {}
 }
-
-window.triggerAlert = function(name, amount, comment) {
-  if (alertActive) return;
-  alertActive = true;
-  const alerte = getAlerte(amount);
-  document.getElementById("alert-name").textContent = name;
-  document.getElementById("alert-amount").textContent = "€" + parseFloat(amount).toFixed(2);
-  const commentEl = document.getElementById("alert-comment");
-  if (comment) { commentEl.textContent = '"' + comment + '"'; commentEl.style.display = "block"; }
-  else { commentEl.style.display = "none"; }
-  const gif = document.getElementById("alert-gif");
-  if (alerte?.gifUrl) { gif.src = alerte.gifUrl + "?" + Date.now(); gif.style.display = "block"; }
-  else { gif.style.display = "none"; }
-  const sound = document.getElementById("alert-sound");
-  const duration = alerte?.duration || 15000;
-  if (alerte?.soundUrl) { sound.src = alerte.soundUrl; sound.volume = alerte.volume || 1; sound.currentTime = 0; sound.play(); }
-  document.getElementById("alert").classList.add("show");
-  setTimeout(() => {
-    sound.pause(); sound.currentTime = 0;
-    const tts = new SpeechSynthesisUtterance(name + " vient de faire un don de " + parseFloat(amount).toFixed(0) + " euros pour les Restaurants du Cœur !");
-    tts.lang = "fr-FR"; tts.rate = 1;
-    const voices = speechSynthesis.getVoices();
-    const voixF = voices.find(v => v.lang === "fr-FR" && v.name.toLowerCase().includes("female")) || voices.find(v => v.lang === "fr-FR");
-    if (voixF) tts.voice = voixF;
-    speechSynthesis.speak(tts);
-    tts.onend = () => { document.getElementById("alert").classList.remove("show"); gif.style.display = "none"; alertActive = false; };
-  }, duration);
-};
-
-window.setBarPercent = function(pct) {
-  document.getElementById("bar-fill").style.width = pct + "%";
-};
 
 fetchData();
 setInterval(fetchData, 30000);

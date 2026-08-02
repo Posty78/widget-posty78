@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@700&display=swap" rel="stylesheet">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: transparent; overflow: hidden; font-family: 'Open Sans', sans-serif; }
+
+  /* BARRE */
+  #widget {
+    position: fixed;
+    top: 0; left: 0;
+    width: 1920px;
+    height: 40px;
+    background: transparent;
+    border-radius: 4px;
+    overflow: hidden;
+  }
+
+  #bar-fill {
+    position: absolute;
+    top: 0; left: 0;
+    height: 100%;
+    background: #00cc44;
+    width: 0%;
+    transition: width 1.5s ease;
+    border-radius: 4px;
+  }
+
+  #content {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 20px;
+  }
+
+  #content span {
+    font-size: 20px;
+    font-weight: 700;
+    color: #fff;
+    text-shadow:
+      -2px -2px 0 #000,
+       2px -2px 0 #000,
+      -2px  2px 0 #000,
+       2px  2px 0 #000,
+       0px -3px 0 #000,
+       0px  3px 0 #000,
+      -3px  0px 0 #000,
+       3px  0px 0 #000;
+  }
+
+  /* ALERTE */
+  #alert {
+    position: fixed;
+    top: 50px;
+    left: 0;
+    width: 1920px;
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    background: transparent;
+  }
+
+  #alert.show { display: flex; }
+
+  #alert-box {
+    background: transparent;
+    text-align: center;
+    padding: 8px 20px;
+  }
+
+  #alert-name {
+    font-size: 36px;
+    font-weight: 700;
+    color: #00cc44;
+    text-shadow:
+      -2px -2px 0 #000,
+       2px -2px 0 #000,
+      -2px  2px 0 #000,
+       2px  2px 0 #000;
+  }
+
+  #alert-amount {
+    font-size: 30px;
+    font-weight: 700;
+    color: #fff;
+    text-shadow:
+      -2px -2px 0 #000,
+       2px -2px 0 #000,
+      -2px  2px 0 #000,
+       2px  2px 0 #000;
+    margin-top: 4px;
+  }
+
+  #alert-comment {
+    font-size: 24px;
+    font-weight: 700;
+    color: #ffdd00;
+    font-style: italic;
+    text-shadow:
+      -1px -1px 0 #000,
+       1px -1px 0 #000,
+      -1px  1px 0 #000,
+       1px  1px 0 #000;
+    margin-top: 6px;
+    display: none;
+  }
+
+  #alert-gif {
+    width: 280px;
+    height: 200px;
+    object-fit: cover;
+    border-radius: 10px;
+  }
+
+  /* BOUTON TEST */
+  #test-btn {
+    position: fixed;
+    bottom: 20px;
+    left: 20px;
+    background: #00cc44;
+    color: #000;
+    font-size: 14px;
+    font-weight: 700;
+    padding: 8px 16px;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+  }
+</style>
+</head>
+<body>
+
+<div id="widget">
+  <div id="bar-fill"></div>
+  <div id="content">
+    <span id="raised">€0.00</span>
+    <span id="title">Pour les Restaurants du Cœur</span>
+    <span id="goal">€1,000.00</span>
+  </div>
+</div>
+
+<div id="alert">
+  <div id="alert-box">
+    <div id="alert-name"></div>
+    <div id="alert-amount"></div>
+    <div id="alert-comment"></div>
+  </div>
+  <img id="alert-gif" src="" alt="" style="display:none">
+</div>
+
+<audio id="alert-sound"></audio>
+<button id="test-btn" onclick="triggerAlert('TestDonateur', 5, 'Super initiative !')">🎉 Tester</button>
+
+<script>
+const CAMPAIGN_ID = "ac3a7c31-144b-4a84-be7d-5f709f637211";
+let lastDonationId = null;
+let alertActive = false;
+
+// Config alertes (sera chargée depuis Firestore)
+let alertes = [
+  { minAmount: 5,   gifUrl: "surprise-shocked.gif", soundUrl: "applaudissement.mp4", duration: 15000 },
+  { minAmount: 10,  gifUrl: "surprise-shocked.gif", soundUrl: "applaudissement.mp4", duration: 15000 },
+  { minAmount: 20,  gifUrl: "surprise-shocked.gif", soundUrl: "applaudissement.mp4", duration: 15000 },
+  { minAmount: 50,  gifUrl: "surprise-shocked.gif", soundUrl: "applaudissement.mp4", duration: 15000 },
+  { minAmount: 100, gifUrl: "surprise-shocked.gif", soundUrl: "applaudissement.mp4", duration: 15000 },
+];
+
+function getAlerte(amount) {
+  const sorted = [...alertes].sort((a, b) => b.minAmount - a.minAmount);
+  return sorted.find(a => amount >= a.minAmount) || alertes[0];
+}
+
+async function fetchData() {
+  try {
+    const res = await fetch("https://v5api.tiltify.com/api/public/campaigns/" + CAMPAIGN_ID);
+    const data = await res.json();
+    const raised = parseFloat(data.data?.amount_raised?.value || 0);
+    const goal = parseFloat(data.data?.goal?.value || 1000);
+    const pct = Math.min((raised / goal) * 100, 100);
+    document.getElementById("raised").textContent = "€" + raised.toFixed(2);
+    document.getElementById("goal").textContent = "€" + goal.toFixed(2);
+    document.getElementById("bar-fill").style.width = pct + "%";
+  } catch(e) {}
+}
+
+async function checkDonations() {
+  try {
+    const res = await fetch("https://v5api.tiltify.com/api/public/campaigns/" + CAMPAIGN_ID + "/donations?limit=1");
+    const data = await res.json();
+    const donations = data.data;
+    if (!donations || donations.length === 0) return;
+    const latest = donations[0];
+    if (lastDonationId === null) { lastDonationId = latest.id; return; }
+    if (latest.id !== lastDonationId) {
+      lastDonationId = latest.id;
+      const amount = parseFloat(latest.amount.value);
+      triggerAlert(latest.donor_name || "Anonyme", amount, latest.donor_comment || "");
+    }
+  } catch(e) {}
+}
+
+function triggerAlert(name, amount, comment) {
+  if (alertActive) return;
+  alertActive = true;
+
+  const alerte = getAlerte(amount);
+
+  document.getElementById("alert-name").textContent = name;
+  document.getElementById("alert-amount").textContent = "€" + parseFloat(amount).toFixed(2);
+
+  const commentEl = document.getElementById("alert-comment");
+  if (comment) {
+    commentEl.textContent = '"' + comment + '"';
+    commentEl.style.display = "block";
+  } else {
+    commentEl.style.display = "none";
+  }
+
+  const gif = document.getElementById("alert-gif");
+  if (alerte.gifUrl) {
+    gif.src = alerte.gifUrl + "?" + Date.now();
+    gif.style.display = "block";
+  } else {
+    gif.style.display = "none";
+  }
+
+  const sound = document.getElementById("alert-sound");
+  sound.src = alerte.soundUrl;
+  sound.volume = 1;
+  sound.currentTime = 0;
+  sound.play();
+
+  document.getElementById("alert").classList.add("show");
+
+  setTimeout(() => {
+    sound.pause();
+    sound.currentTime = 0;
+    // TTS après la fin du son
+    const tts = new SpeechSynthesisUtterance(name + " vient de faire un don de " + parseFloat(amount).toFixed(0) + " euros pour les Restaurants du Cœur !");
+    tts.lang = "fr-FR";
+    tts.rate = 1;
+    const voices = speechSynthesis.getVoices();
+    const voixFeminine = voices.find(v => v.lang === "fr-FR" && v.name.toLowerCase().includes("female")) || voices.find(v => v.lang === "fr-FR");
+    if (voixFeminine) tts.voice = voixFeminine;
+    speechSynthesis.speak(tts);
+
+    tts.onend = () => {
+      document.getElementById("alert").classList.remove("show");
+      gif.style.display = "none";
+      alertActive = false;
+    };
+  }, alerte.duration);
+}
+
+fetchData();
+setInterval(fetchData, 30000);
+setInterval(checkDonations, 12000);
+</script>
+</body>
+</html>

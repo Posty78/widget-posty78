@@ -3,32 +3,13 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>TTS Dons - Posty78</title>
 <style>
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-  body { background: #0d0d0d; color: #fff; font-family: sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; padding: 20px; }
-  h1 { color: #00cc44; font-size: 20px; margin-bottom: 10px; text-align: center; }
-  .dot { display: inline-block; width: 10px; height: 10px; background: #00cc44; border-radius: 50%; margin-right: 6px; animation: blink 1s infinite; }
-  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
-  #status { font-size: 13px; color: #aaa; margin-bottom: 20px; text-align: center; }
-  #last-don { background: #1a1a1a; border: 2px solid #00cc44; border-radius: 12px; padding: 16px; text-align: center; width: 100%; max-width: 400px; display: none; }
-  #don-name { color: #00cc44; font-size: 22px; font-weight: 700; }
-  #don-amount { color: #fff; font-size: 18px; margin-top: 6px; }
-  #don-comment { color: #ffdd00; font-style: italic; font-size: 14px; margin-top: 6px; }
+  * { margin: 0; padding: 0; }
+  body { background: transparent; overflow: hidden; }
 </style>
 </head>
 <body>
-
-<h1>🎙️ TTS Dons — Posty78</h1>
-<p id="status"><span class="dot"></span> En écoute — TTS actif</p>
-
-<div id="last-don">
-  <div id="don-name"></div>
-  <div id="don-amount"></div>
-  <div id="don-comment"></div>
-</div>
-
-<audio id="tts-audio" autoplay></audio>
+<audio id="tts-audio"></audio>
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
@@ -54,21 +35,14 @@ onSnapshot(doc(db, "config", "commandes"), (snap) => {
   if (cmd.type === "alerte") {
     const name = cmd.name || "Anonyme";
     const amount = parseFloat(cmd.amount || 0);
-    const comment = cmd.comment || "";
     const alerteDuration = cmd.alerteDuration || 15000;
-
-    document.getElementById("don-name").textContent = name;
-    document.getElementById("don-amount").textContent = "€" + amount.toFixed(2);
-    document.getElementById("don-comment").textContent = comment ? '"' + comment + '"' : "";
-    document.getElementById("don-comment").style.display = comment ? "block" : "none";
-    document.getElementById("last-don").style.display = "block";
 
     setTimeout(() => {
       const msg = encodeURIComponent(name + " vient de faire un don de " + amount.toFixed(0) + " euros pour les Restaurants du Coeur !");
       const url = "https://api.streamelements.com/kappa/v2/speech?voice=fr-FR-Standard-A&text=" + msg;
       const audio = document.getElementById("tts-audio");
       audio.src = url;
-      audio.play().catch(e => console.log("audio error:", e));
+      audio.play().catch(e => console.log(e));
     }, alerteDuration + 500);
   }
 });

@@ -9,14 +9,15 @@
   #widget { position: fixed; top: 0; left: 0; width: 600px; height: 40px; background: transparent; border-radius: 4px; overflow: hidden; }
   #bar-fill { position: absolute; top: 0; left: 0; height: 100%; background: #00cc44; width: 0%; transition: width 1.5s ease; border-radius: 4px; }
   #content { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; justify-content: space-between; align-items: center; padding: 0 10px; }
-  #raised, #goal { font-size: 13px; font-weight: 700; color: #fff; white-space: nowrap; flex-shrink: 0; text-shadow: -3px -3px 0 #000, 3px -3px 0 #000, -3px 3px 0 #000, 3px 3px 0 #000, 0 -3px 0 #000, 0 3px 0 #000, -3px 0 0 #000, 3px 0 0 #000; }
-  #title { font-size: 13px; font-weight: 700; color: #fff; white-space: nowrap; flex: 1; text-align: center; text-shadow: -3px -3px 0 #000, 3px -3px 0 #000, -3px 3px 0 #000, 3px 3px 0 #000, 0 -3px 0 #000, 0 3px 0 #000, -3px 0 0 #000, 3px 0 0 #000; }
+  #content span { font-size: 13px; font-weight: 700; color: #fff; text-shadow: -3px -3px 0 #000, 3px -3px 0 #000, -3px 3px 0 #000, 3px 3px 0 #000, 0 -3px 0 #000, 0 3px 0 #000, -3px 0 0 #000, 3px 0 0 #000; }
+  #title { flex: 1; text-align: center; }
+  #raised, #goal { white-space: nowrap; flex-shrink: 0; }
   #alert { position: fixed; top: 50px; left: 0; width: 600px; display: none; flex-direction: column; align-items: center; gap: 8px; background: transparent; }
   #alert.show { display: flex; }
   #alert-box { background: transparent; text-align: center; padding: 8px 20px; }
-  #alert-name { font-size: 28px; font-weight: 700; color: #00cc44; text-shadow: -3px -3px 0 #000, 3px -3px 0 #000, -3px 3px 0 #000, 3px 3px 0 #000; }
-  #alert-amount { font-size: 22px; font-weight: 700; color: #fff; text-shadow: -3px -3px 0 #000, 3px -3px 0 #000, -3px 3px 0 #000, 3px 3px 0 #000; margin-top: 4px; }
-  #alert-comment { font-size: 18px; font-weight: 700; color: #ffdd00; font-style: italic; text-shadow: -2px -2px 0 #000, 2px -2px 0 #000, -2px 2px 0 #000, 2px 2px 0 #000; margin-top: 6px; display: none; }
+  #alert-name { font-size: 28px; font-weight: 700; color: #00cc44; text-shadow: -2px -2px 0 #000, 2px -2px 0 #000, -2px 2px 0 #000, 2px 2px 0 #000; }
+  #alert-amount { font-size: 22px; font-weight: 700; color: #fff; text-shadow: -2px -2px 0 #000, 2px -2px 0 #000, -2px 2px 0 #000, 2px 2px 0 #000; margin-top: 4px; }
+  #alert-comment { font-size: 18px; font-weight: 700; color: #ffdd00; font-style: italic; text-shadow: -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000; margin-top: 6px; display: none; }
   #alert-gif { width: 280px; height: 200px; object-fit: cover; border-radius: 10px; }
 </style>
 </head>
@@ -39,44 +40,42 @@
 </div>
 <audio id="alert-sound"></audio>
 
-<!-- Firebase compat (scripts classiques, pas de modules ES6) -->
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getFirestore, doc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
-<script>
 const firebaseConfig = {
   apiKey: "AIzaSyAqTfmdrbyfZv6cn22BH9JI67rxSRrn1iI",
   authDomain: "posty78-widget.firebaseapp.com",
   projectId: "posty78-widget",
   appId: "1:735535963299:web:0b6e6277fee374529cb316"
 };
-firebase.initializeApp(firebaseConfig);
-const db = firebase.firestore();
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
 
 const CAMPAIGN_ID = "ac3a7c31-144b-4a84-be7d-5f709f637211";
 let lastDonationId = null;
 let alertActive = false;
 let alertes = [];
-const LOAD_TIME = Date.now();
+let lastCmdTs = 0;
 
-// Écoute alertes config
-db.doc("config/alertes").onSnapshot(snap => {
-  if (snap.exists) alertes = snap.data().liste || [];
+onSnapshot(doc(db, "config", "alertes"), (snap) => {
+  if (snap.exists()) alertes = snap.data().liste || [];
 });
 
-// Écoute commandes temps réel
-db.doc("config/commandes").onSnapshot(snap => {
-  if (!snap.exists) return;
+// Commandes depuis admin (barre + alertes test)
+onSnapshot(doc(db, "config", "commandes"), (snap) => {
+  if (!snap.exists()) return;
   const cmd = snap.data();
-  if (!cmd.ts || (Date.now() - cmd.ts) > 5000) return;
-  if (cmd.ts < LOAD_TIME) return;
+  if (!cmd.ts || cmd.ts <= lastCmdTs) return;
+  lastCmdTs = cmd.ts;
 
   if (cmd.type === "barre") {
     document.getElementById("bar-fill").style.width = (cmd.pct || 0) + "%";
   }
   if (cmd.type === "alerte") {
     const alerte = alertes.find(a => a.id == cmd.alerteId) || alertes[0];
-    if (alerte) lancerAlerte(cmd.name || "Anonyme", cmd.amount || 5, cmd.comment || "", alerte);
+    if (alerte) window.triggerAlert(cmd.name || "Anonyme", cmd.amount || 5, cmd.comment || "");
   }
 });
 
@@ -85,10 +84,11 @@ function getAlerte(amount) {
   return sorted.find(a => amount >= a.minAmount) || null;
 }
 
-function lancerAlerte(name, amount, comment, alerte) {
+window.triggerAlert = function(name, amount, comment) {
   if (alertActive) return;
   alertActive = true;
 
+  const alerte = getAlerte(amount);
   document.getElementById("alert-name").textContent = name;
   document.getElementById("alert-amount").textContent = "€" + parseFloat(amount).toFixed(2);
 
@@ -97,50 +97,33 @@ function lancerAlerte(name, amount, comment, alerte) {
   else { commentEl.style.display = "none"; }
 
   const gif = document.getElementById("alert-gif");
-  if (alerte && alerte.gifUrl) { gif.src = alerte.gifUrl + "?" + Date.now(); gif.style.display = "block"; }
+  if (alerte?.gifUrl) { gif.src = alerte.gifUrl + "?" + Date.now(); gif.style.display = "block"; }
   else { gif.style.display = "none"; }
 
   const sound = document.getElementById("alert-sound");
-  const duration = (alerte && alerte.duration) ? alerte.duration : 15000;
-
-  if (alerte && alerte.soundUrl) {
-    sound.src = alerte.soundUrl;
-    sound.volume = alerte.volume || 1;
-    sound.currentTime = 0;
-    sound.play();
-  }
+  const duration = alerte?.duration || 15000;
+  if (alerte?.soundUrl) { sound.src = alerte.soundUrl; sound.volume = alerte.volume || 1; sound.currentTime = 0; sound.play(); }
 
   document.getElementById("alert").classList.add("show");
 
-  setTimeout(function() {
-    sound.pause();
-    sound.currentTime = 0;
-    document.getElementById("alert").classList.remove("show");
-    gif.style.display = "none";
-
-    // TTS après l'alerte
-    setTimeout(function() {
-      var msg = name + " vient de faire un don de " + parseFloat(amount).toFixed(0) + " euros pour les Restaurants du Coeur !";
-      var tts = new SpeechSynthesisUtterance(msg);
-      tts.lang = "fr-FR";
-      tts.rate = 1;
-      tts.onend = function() { alertActive = false; };
-      tts.onerror = function() { alertActive = false; };
-      var voices = speechSynthesis.getVoices();
-      var voixF = voices.find(function(v) { return v.lang.startsWith("fr"); });
-      if (voixF) tts.voice = voixF;
-      speechSynthesis.speak(tts);
-    }, 500);
-
+  setTimeout(() => {
+    sound.pause(); sound.currentTime = 0;
+    const tts = new SpeechSynthesisUtterance(name + " vient de faire un don de " + parseFloat(amount).toFixed(0) + " euros pour les Restaurants du Cœur !");
+    tts.lang = "fr-FR"; tts.rate = 1;
+    const voices = speechSynthesis.getVoices();
+    const voixF = voices.find(v => v.lang === "fr-FR" && v.name.toLowerCase().includes("female")) || voices.find(v => v.lang === "fr-FR");
+    if (voixF) tts.voice = voixF;
+    speechSynthesis.speak(tts);
+    tts.onend = () => { document.getElementById("alert").classList.remove("show"); gif.style.display = "none"; alertActive = false; };
   }, duration);
-}
+};
 
 async function fetchData() {
   try {
     const res = await fetch("https://v5api.tiltify.com/api/public/campaigns/" + CAMPAIGN_ID);
     const data = await res.json();
-    const raised = parseFloat((data.data && data.data.amount_raised) ? data.data.amount_raised.value : 0);
-    const goal = parseFloat((data.data && data.data.goal) ? data.data.goal.value : 1000);
+    const raised = parseFloat(data.data?.amount_raised?.value || 0);
+    const goal = parseFloat(data.data?.goal?.value || 1000);
     const pct = Math.min((raised / goal) * 100, 100);
     document.getElementById("raised").textContent = "€" + raised.toFixed(2);
     document.getElementById("goal").textContent = "€" + goal.toFixed(2);
@@ -159,8 +142,7 @@ async function checkDonations() {
     if (latest.id !== lastDonationId) {
       lastDonationId = latest.id;
       const amount = parseFloat(latest.amount.value);
-      const alerte = getAlerte(amount);
-      if (alerte) lancerAlerte(latest.donor_name || "Anonyme", amount, latest.donor_comment || "", alerte);
+      window.triggerAlert(latest.donor_name || "Anonyme", amount, latest.donor_comment || "");
     }
   } catch(e) {}
 }

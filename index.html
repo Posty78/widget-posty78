@@ -19,7 +19,6 @@
   #alert-comment { font-size: 18px; font-weight: 700; color: #ffdd00; font-style: italic; text-shadow: -2px -2px 0 #000, 2px -2px 0 #000, -2px 2px 0 #000, 2px 2px 0 #000; margin-top: 6px; display: none; }
   #alert-gif { width: 280px; height: 200px; object-fit: cover; border-radius: 10px; }
 </style>
-<script src="https://code.responsivevoice.org/responsivevoice.js"></script>
 </head>
 <body>
 <div id="widget">
@@ -38,19 +37,21 @@
   </div>
   <img id="alert-gif" src="" alt="" style="display:none">
 </div>
+<audio id="alert-sound"></audio>
 
-<script type="module">
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import { getFirestore, doc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+<!-- Firebase compat (scripts classiques, pas de modules ES6) -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 
+<script>
 const firebaseConfig = {
   apiKey: "AIzaSyAqTfmdrbyfZv6cn22BH9JI67rxSRrn1iI",
   authDomain: "posty78-widget.firebaseapp.com",
   projectId: "posty78-widget",
   appId: "1:735535963299:web:0b6e6277fee374529cb316"
 };
-const app = initializeApp(firebaseConfig);
-const db = getFirestore(app);
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
 
 const CAMPAIGN_ID = "ac3a7c31-144b-4a84-be7d-5f709f637211";
 let lastDonationId = null;
@@ -58,16 +59,16 @@ let alertActive = false;
 let alertes = [];
 const LOAD_TIME = Date.now();
 
-onSnapshot(doc(db, "config", "alertes"), (snap) => {
-  if (snap.exists()) alertes = snap.data().liste || [];
+// Écoute alertes config
+db.doc("config/alertes").onSnapshot(snap => {
+  if (snap.exists) alertes = snap.data().liste || [];
 });
 
-onSnapshot(doc(db, "config", "commandes"), (snap) => {
-  if (!snap.exists()) return;
+// Écoute commandes temps réel
+db.doc("config/commandes").onSnapshot(snap => {
+  if (!snap.exists) return;
   const cmd = snap.data();
-  // Ignorer les commandes de plus de 5 secondes
   if (!cmd.ts || (Date.now() - cmd.ts) > 5000) return;
-  // Ignorer si chargé avant la commande
   if (cmd.ts < LOAD_TIME) return;
 
   if (cmd.type === "barre") {
@@ -96,33 +97,39 @@ function lancerAlerte(name, amount, comment, alerte) {
   else { commentEl.style.display = "none"; }
 
   const gif = document.getElementById("alert-gif");
-  if (alerte?.gifUrl) { gif.src = alerte.gifUrl + "?" + Date.now(); gif.style.display = "block"; }
+  if (alerte && alerte.gifUrl) { gif.src = alerte.gifUrl + "?" + Date.now(); gif.style.display = "block"; }
   else { gif.style.display = "none"; }
 
-  const duration = alerte?.duration || 15000;
+  const sound = document.getElementById("alert-sound");
+  const duration = (alerte && alerte.duration) ? alerte.duration : 15000;
 
-  // Son via audio classique
-  const audio = new Audio();
-  if (alerte?.soundUrl) {
-    audio.src = alerte.soundUrl;
-    audio.volume = alerte.volume || 1;
-    audio.play().catch(e => console.log("Audio error:", e));
+  if (alerte && alerte.soundUrl) {
+    sound.src = alerte.soundUrl;
+    sound.volume = alerte.volume || 1;
+    sound.currentTime = 0;
+    sound.play();
   }
 
   document.getElementById("alert").classList.add("show");
 
-  setTimeout(() => {
+  setTimeout(function() {
+    sound.pause();
+    sound.currentTime = 0;
     document.getElementById("alert").classList.remove("show");
     gif.style.display = "none";
 
     // TTS après l'alerte
-    setTimeout(() => {
-      const msg = name + " vient de faire un don de " + parseFloat(amount).toFixed(0) + " euros pour les Restaurants du Coeur !";
-      if (typeof responsiveVoice !== "undefined") {
-        responsiveVoice.speak(msg, "French Female", { onend: () => { alertActive = false; } });
-      } else {
-        alertActive = false;
-      }
+    setTimeout(function() {
+      var msg = name + " vient de faire un don de " + parseFloat(amount).toFixed(0) + " euros pour les Restaurants du Coeur !";
+      var tts = new SpeechSynthesisUtterance(msg);
+      tts.lang = "fr-FR";
+      tts.rate = 1;
+      tts.onend = function() { alertActive = false; };
+      tts.onerror = function() { alertActive = false; };
+      var voices = speechSynthesis.getVoices();
+      var voixF = voices.find(function(v) { return v.lang.startsWith("fr"); });
+      if (voixF) tts.voice = voixF;
+      speechSynthesis.speak(tts);
     }, 500);
 
   }, duration);
@@ -132,8 +139,8 @@ async function fetchData() {
   try {
     const res = await fetch("https://v5api.tiltify.com/api/public/campaigns/" + CAMPAIGN_ID);
     const data = await res.json();
-    const raised = parseFloat(data.data?.amount_raised?.value || 0);
-    const goal = parseFloat(data.data?.goal?.value || 1000);
+    const raised = parseFloat((data.data && data.data.amount_raised) ? data.data.amount_raised.value : 0);
+    const goal = parseFloat((data.data && data.data.goal) ? data.data.goal.value : 1000);
     const pct = Math.min((raised / goal) * 100, 100);
     document.getElementById("raised").textContent = "€" + raised.toFixed(2);
     document.getElementById("goal").textContent = "€" + goal.toFixed(2);

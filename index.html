@@ -130,12 +130,28 @@ function lancerAlerte(name, amount, comment, alerte) {
   const gif = document.getElementById("alert-gif");
   if (alerte?.gifUrl) { gif.src = alerte.gifUrl + "?" + Date.now(); gif.style.display = "block"; }
   else { gif.style.display = "none"; }
-  const sound = document.getElementById("alert-sound");
   const duration = alerte?.duration || 15000;
-  if (alerte?.soundUrl) { sound.src = alerte.soundUrl; sound.volume = alerte.volume || 1; sound.currentTime = 0; sound.play(); }
+  let audioSrc = null;
+  let audioCtx = null;
+  if (alerte?.soundUrl) {
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    fetch(alerte.soundUrl)
+      .then(r => r.arrayBuffer())
+      .then(buf => audioCtx.decodeAudioData(buf))
+      .then(decoded => {
+        audioSrc = audioCtx.createBufferSource();
+        audioSrc.buffer = decoded;
+        const gain = audioCtx.createGain();
+        gain.gain.value = alerte.volume || 1;
+        audioSrc.connect(gain);
+        gain.connect(audioCtx.destination);
+        audioSrc.start(0);
+      }).catch(e => console.log("Audio error:", e));
+  }
   document.getElementById("alert").classList.add("show");
   setTimeout(() => {
-    sound.pause(); sound.currentTime = 0;
+    if (audioSrc) { try { audioSrc.stop(); } catch(e) {} }
+    if (audioCtx) audioCtx.close();
     const tts = new SpeechSynthesisUtterance(name + " vient de faire un don de " + parseFloat(amount).toFixed(0) + " euros pour les Restaurants du Cœur !");
     tts.lang = "fr-FR"; tts.rate = 1;
     const voices = speechSynthesis.getVoices();

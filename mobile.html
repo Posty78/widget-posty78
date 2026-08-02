@@ -39,7 +39,7 @@ onSnapshot(doc(db, "config", "commandes"), (snap) => {
 
     setTimeout(() => {
       const msg = encodeURIComponent(name + " vient de faire un don de " + amount.toFixed(0) + " euros pour les Restaurants du Coeur !");
-      const url = "https://api.streamelements.com/kappa/v2/speech?voice=fr-FR-Standard-A&text=" + msg;
+      const url = "https://translate.google.com/translate_tts?ie=UTF-8&tl=fr&client=tw-ob&q=" + msg;
       const audio = document.getElementById("tts-audio");
       audio.src = url;
       audio.play().catch(e => console.log(e));

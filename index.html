@@ -100,21 +100,12 @@ function lancerAlerte(name, amount, comment, alerte) {
 
   const duration = alerte?.duration || 15000;
 
-  // Son via AudioContext
+  // Son via audio classique
+  const audio = new Audio();
   if (alerte?.soundUrl) {
-    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    fetch(alerte.soundUrl)
-      .then(r => r.arrayBuffer())
-      .then(buf => audioCtx.decodeAudioData(buf))
-      .then(decoded => {
-        const src = audioCtx.createBufferSource();
-        src.buffer = decoded;
-        const gain = audioCtx.createGain();
-        gain.gain.value = alerte.volume || 1;
-        src.connect(gain);
-        gain.connect(audioCtx.destination);
-        src.start(0);
-      }).catch(e => console.log("Audio error:", e));
+    audio.src = alerte.soundUrl;
+    audio.volume = alerte.volume || 1;
+    audio.play().catch(e => console.log("Audio error:", e));
   }
 
   document.getElementById("alert").classList.add("show");

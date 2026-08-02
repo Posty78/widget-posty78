@@ -19,6 +19,7 @@
   #alert-comment { font-size: 18px; font-weight: 700; color: #ffdd00; font-style: italic; text-shadow: -2px -2px 0 #000, 2px -2px 0 #000, -2px 2px 0 #000, 2px 2px 0 #000; margin-top: 6px; display: none; }
   #alert-gif { width: 280px; height: 200px; object-fit: cover; border-radius: 10px; }
 </style>
+<script src="https://code.responsivevoice.org/responsivevoice.js"></script>
 </head>
 <body>
 <div id="widget">
@@ -116,29 +117,11 @@ function lancerAlerte(name, amount, comment, alerte) {
 
     // TTS après l'alerte
     setTimeout(() => {
-      const msg = name + " vient de faire un don de " + parseFloat(amount).toFixed(0) + " euros pour les Restaurants du Cœur !";
-      const tts = new SpeechSynthesisUtterance(msg);
-      tts.lang = "fr-FR";
-      tts.rate = 1;
-      tts.onend = () => { alertActive = false; };
-      tts.onerror = () => { alertActive = false; };
-
-      const trySpeak = () => {
-        const voices = speechSynthesis.getVoices();
-        const voixF = voices.find(v => v.lang.startsWith("fr") && v.name.toLowerCase().includes("female"))
-                   || voices.find(v => v.lang.startsWith("fr"))
-                   || voices[0];
-        if (voixF) tts.voice = voixF;
-        speechSynthesis.cancel();
-        speechSynthesis.speak(tts);
-      };
-
-      if (speechSynthesis.getVoices().length > 0) {
-        trySpeak();
+      const msg = name + " vient de faire un don de " + parseFloat(amount).toFixed(0) + " euros pour les Restaurants du Coeur !";
+      if (typeof responsiveVoice !== "undefined") {
+        responsiveVoice.speak(msg, "French Female", { onend: () => { alertActive = false; } });
       } else {
-        speechSynthesis.addEventListener("voiceschanged", trySpeak, { once: true });
-        // Fallback si voiceschanged ne se déclenche pas
-        setTimeout(trySpeak, 1000);
+        alertActive = false;
       }
     }, 500);
 

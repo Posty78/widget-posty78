@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TTS Dons - Posty78</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #0d0d0d; color: #fff; font-family: sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; padding: 20px; }
+  h1 { color: #00cc44; font-size: 22px; margin-bottom: 20px; text-align: center; }
+  #status { font-size: 14px; color: #aaa; margin-bottom: 20px; text-align: center; }
+  #last-don { background: #1a1a1a; border: 2px solid #00cc44; border-radius: 12px; padding: 20px; text-align: center; width: 100%; max-width: 400px; display: none; }
+  #last-don h2 { color: #00cc44; font-size: 24px; }
+  #last-don p { color: #fff; font-size: 20px; margin-top: 8px; }
+  #last-don .comment { color: #ffdd00; font-style: italic; font-size: 16px; margin-top: 8px; }
+  #activate-btn { background: #00cc44; color: #000; font-size: 18px; font-weight: 700; padding: 16px 32px; border: none; border-radius: 12px; cursor: pointer; margin-bottom: 30px; }
+  #activated { display: none; color: #00cc44; font-size: 14px; margin-bottom: 20px; }
+  .dot { display: inline-block; width: 10px; height: 10px; background: #00cc44; border-radius: 50%; margin-right: 6px; animation: blink 1s infinite; }
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
+</style>
+</head>
+<body>
+
+<h1>🎙️ TTS Dons — Posty78</h1>
+<p id="status">Appuie sur le bouton pour activer</p>
+<button id="activate-btn" onclick="activer()">🔊 Activer le TTS</button>
+<div id="activated"><span class="dot"></span> En écoute — TTS actif</div>
+
+<div id="last-don">
+  <h2 id="don-name"></h2>
+  <p id="don-amount"></p>
+  <p class="comment" id="don-comment"></p>
+</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getFirestore, doc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyAqTfmdrbyfZv6cn22BH9JI67rxSRrn1iI",
+  authDomain: "posty78-widget.firebaseapp.com",
+  projectId: "posty78-widget",
+  appId: "1:735535963299:web:0b6e6277fee374529cb316"
+};
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+
+let actif = false;
+let lastCmdTs = 0;
+
+window.activer = function() {
+  actif = true;
+  document.getElementById("activate-btn").style.display = "none";
+  document.getElementById("activated").style.display = "block";
+  document.getElementById("status").textContent = "En attente de dons...";
+
+  // Test TTS pour débloquer l'audio mobile
+  const test = new SpeechSynthesisUtterance("TTS activé");
+  test.lang = "fr-FR";
+  test.volume = 0;
+  speechSynthesis.speak(test);
+
+  // Écoute les dons via Firestore
+  onSnapshot(doc(db, "config", "commandes"), (snap) => {
+    if (!snap.exists()) return;
+    const cmd = snap.data();
+    if (!cmd.ts || cmd.ts <= lastCmdTs) return;
+    lastCmdTs = cmd.ts;
+
+    if (cmd.type === "alerte" && actif) {
+      const name = cmd.name || "Anonyme";
+      const amount = parseFloat(cmd.amount || 0).toFixed(0);
+      const comment = cmd.comment || "";
+
+      // Afficher le don
+      document.getElementById("don-name").textContent = name;
+      document.getElementById("don-amount").textContent = "€" + parseFloat(cmd.amount || 0).toFixed(2);
+      document.getElementById("don-comment").textContent = comment ? '"' + comment + '"' : "";
+      document.getElementById("don-comment").style.display = comment ? "block" : "none";
+      document.getElementById("last-don").style.display = "block";
+
+      // Délai pour laisser le son OBS jouer d'abord
+      const alertDuration = cmd.alerteDuration || 15000;
+      setTimeout(() => {
+        const msg = name + " vient de faire un don de " + amount + " euros pour les Restaurants du Cœur !";
+        const tts = new SpeechSynthesisUtterance(msg);
+        tts.lang = "fr-FR";
+        tts.rate = 1;
+        const voices = speechSynthesis.getVoices();
+        const voixF = voices.find(v => v.lang.startsWith("fr") && v.name.toLowerCase().includes("female"))
+                   || voices.find(v => v.lang.startsWith("fr"))
+                   || voices[0];
+        if (voixF) tts.voice = voixF;
+        speechSynthesis.speak(tts);
+      }, alertDuration + 500);
+    }
+  });
+};
+</script>
+</body>
+</html>

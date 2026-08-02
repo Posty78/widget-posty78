@@ -154,11 +154,20 @@ function lancerAlerte(name, amount, comment, alerte) {
     if (audioCtx) audioCtx.close();
     const tts = new SpeechSynthesisUtterance(name + " vient de faire un don de " + parseFloat(amount).toFixed(0) + " euros pour les Restaurants du Cœur !");
     tts.lang = "fr-FR"; tts.rate = 1;
-    const voices = speechSynthesis.getVoices();
-    const voixF = voices.find(v => v.lang === "fr-FR" && v.name.toLowerCase().includes("female")) || voices.find(v => v.lang === "fr-FR");
-    if (voixF) tts.voice = voixF;
-    speechSynthesis.speak(tts);
-    tts.onend = () => { document.getElementById("alert").classList.remove("show"); gif.style.display = "none"; alertActive = false; };
+    document.getElementById("alert").classList.remove("show");
+    gif.style.display = "none";
+    const lancerTTS = () => {
+      const voices = speechSynthesis.getVoices();
+      const voixF = voices.find(v => v.lang === "fr-FR" && v.name.toLowerCase().includes("female")) || voices.find(v => v.lang === "fr-FR");
+      if (voixF) tts.voice = voixF;
+      tts.onend = () => { alertActive = false; };
+      speechSynthesis.speak(tts);
+    };
+    if (speechSynthesis.getVoices().length > 0) {
+      lancerTTS();
+    } else {
+      speechSynthesis.onvoiceschanged = lancerTTS;
+    }
   }, duration);
 }
 

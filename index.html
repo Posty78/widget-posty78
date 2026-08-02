@@ -6,52 +6,17 @@
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body { background: transparent; overflow: hidden; font-family: 'Open Sans', sans-serif; }
-
-  #widget {
-    position: fixed;
-    top: 0; left: 0;
-    width: 600px;
-    height: 40px;
-    background: transparent;
-    border-radius: 4px;
-    overflow: hidden;
-  }
-  #bar-fill {
-    position: absolute;
-    top: 0; left: 0;
-    height: 100%;
-    background: #00cc44;
-    width: 0%;
-    transition: width 1.5s ease;
-    border-radius: 4px;
-  }
-  #content {
-    position: absolute;
-    top: 0; left: 0;
-    width: 100%; height: 100%;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 0 10px;
-  }
-  #raised, #goal {
-    font-size: 13px; font-weight: 700; color: #fff; white-space: nowrap; flex-shrink: 0;
-    text-shadow: -3px -3px 0 #000, 3px -3px 0 #000, -3px 3px 0 #000, 3px 3px 0 #000, 0 -3px 0 #000, 0 3px 0 #000, -3px 0 0 #000, 3px 0 0 #000;
-  }
-  #title {
-    font-size: 13px; font-weight: 700; color: #fff; white-space: nowrap; flex: 1; text-align: center;
-    text-shadow: -3px -3px 0 #000, 3px -3px 0 #000, -3px 3px 0 #000, 3px 3px 0 #000, 0 -3px 0 #000, 0 3px 0 #000, -3px 0 0 #000, 3px 0 0 #000;
-  }
-
-  #alert {
-    position: fixed; top: 50px; left: 0; width: 600px;
-    display: none; flex-direction: column; align-items: center; gap: 8px; background: transparent;
-  }
+  #widget { position: fixed; top: 0; left: 0; width: 600px; height: 40px; background: transparent; border-radius: 4px; overflow: hidden; }
+  #bar-fill { position: absolute; top: 0; left: 0; height: 100%; background: #00cc44; width: 0%; transition: width 1.5s ease; border-radius: 4px; }
+  #content { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; justify-content: space-between; align-items: center; padding: 0 10px; }
+  #raised, #goal { font-size: 13px; font-weight: 700; color: #fff; white-space: nowrap; flex-shrink: 0; text-shadow: -3px -3px 0 #000, 3px -3px 0 #000, -3px 3px 0 #000, 3px 3px 0 #000, 0 -3px 0 #000, 0 3px 0 #000, -3px 0 0 #000, 3px 0 0 #000; }
+  #title { font-size: 13px; font-weight: 700; color: #fff; white-space: nowrap; flex: 1; text-align: center; text-shadow: -3px -3px 0 #000, 3px -3px 0 #000, -3px 3px 0 #000, 3px 3px 0 #000, 0 -3px 0 #000, 0 3px 0 #000, -3px 0 0 #000, 3px 0 0 #000; }
+  #alert { position: fixed; top: 50px; left: 0; width: 600px; display: none; flex-direction: column; align-items: center; gap: 8px; background: transparent; }
   #alert.show { display: flex; }
   #alert-box { background: transparent; text-align: center; padding: 8px 20px; }
-  #alert-name { font-size: 28px; font-weight: 700; color: #00cc44; text-shadow: -3px -3px 0 #000, 3px -3px 0 #000, -3px 3px 0 #000, 3px 3px 0 #000, 0 -3px 0 #000, 0 3px 0 #000, -3px 0 0 #000, 3px 0 0 #000; }
-  #alert-amount { font-size: 22px; font-weight: 700; color: #fff; text-shadow: -3px -3px 0 #000, 3px -3px 0 #000, -3px 3px 0 #000, 3px 3px 0 #000, 0 -3px 0 #000, 0 3px 0 #000, -3px 0 0 #000, 3px 0 0 #000; margin-top: 4px; }
-  #alert-comment { font-size: 18px; font-weight: 700; color: #ffdd00; font-style: italic; text-shadow: -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000; margin-top: 6px; display: none; }
+  #alert-name { font-size: 28px; font-weight: 700; color: #00cc44; text-shadow: -3px -3px 0 #000, 3px -3px 0 #000, -3px 3px 0 #000, 3px 3px 0 #000; }
+  #alert-amount { font-size: 22px; font-weight: 700; color: #fff; text-shadow: -3px -3px 0 #000, 3px -3px 0 #000, -3px 3px 0 #000, 3px 3px 0 #000; margin-top: 4px; }
+  #alert-comment { font-size: 18px; font-weight: 700; color: #ffdd00; font-style: italic; text-shadow: -2px -2px 0 #000, 2px -2px 0 #000, -2px 2px 0 #000, 2px 2px 0 #000; margin-top: 6px; display: none; }
   #alert-gif { width: 280px; height: 200px; object-fit: cover; border-radius: 10px; }
 </style>
 </head>
@@ -72,7 +37,6 @@
   </div>
   <img id="alert-gif" src="" alt="" style="display:none">
 </div>
-<audio id="alert-sound"></audio>
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
@@ -91,26 +55,26 @@ const CAMPAIGN_ID = "ac3a7c31-144b-4a84-be7d-5f709f637211";
 let lastDonationId = null;
 let alertActive = false;
 let alertes = [];
+const LOAD_TIME = Date.now();
 
-// Écoute alertes config
 onSnapshot(doc(db, "config", "alertes"), (snap) => {
   if (snap.exists()) alertes = snap.data().liste || [];
 });
 
-// Écoute commandes temps réel depuis admin
 onSnapshot(doc(db, "config", "commandes"), (snap) => {
   if (!snap.exists()) return;
   const cmd = snap.data();
+  // Ignorer les commandes de plus de 5 secondes
+  if (!cmd.ts || (Date.now() - cmd.ts) > 5000) return;
+  // Ignorer si chargé avant la commande
+  if (cmd.ts < LOAD_TIME) return;
 
-  // Commande barre
-  if (cmd.type === "barre" && cmd.pct !== undefined) {
-    document.getElementById("bar-fill").style.width = cmd.pct + "%";
+  if (cmd.type === "barre") {
+    document.getElementById("bar-fill").style.width = (cmd.pct || 0) + "%";
   }
-
-  // Commande alerte test
-  if (cmd.type === "alerte" && cmd.ts) {
+  if (cmd.type === "alerte") {
     const alerte = alertes.find(a => a.id == cmd.alerteId) || alertes[0];
-    if (alerte) lancerAlerte(cmd.name || "TestDonateur", cmd.amount || 5, cmd.comment || "", alerte);
+    if (alerte) lancerAlerte(cmd.name || "Anonyme", cmd.amount || 5, cmd.comment || "", alerte);
   }
 });
 
@@ -122,52 +86,71 @@ function getAlerte(amount) {
 function lancerAlerte(name, amount, comment, alerte) {
   if (alertActive) return;
   alertActive = true;
+
   document.getElementById("alert-name").textContent = name;
   document.getElementById("alert-amount").textContent = "€" + parseFloat(amount).toFixed(2);
+
   const commentEl = document.getElementById("alert-comment");
   if (comment) { commentEl.textContent = '"' + comment + '"'; commentEl.style.display = "block"; }
   else { commentEl.style.display = "none"; }
+
   const gif = document.getElementById("alert-gif");
   if (alerte?.gifUrl) { gif.src = alerte.gifUrl + "?" + Date.now(); gif.style.display = "block"; }
   else { gif.style.display = "none"; }
+
   const duration = alerte?.duration || 15000;
-  let audioSrc = null;
-  let audioCtx = null;
+
+  // Son via AudioContext
   if (alerte?.soundUrl) {
-    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
     fetch(alerte.soundUrl)
       .then(r => r.arrayBuffer())
       .then(buf => audioCtx.decodeAudioData(buf))
       .then(decoded => {
-        audioSrc = audioCtx.createBufferSource();
-        audioSrc.buffer = decoded;
+        const src = audioCtx.createBufferSource();
+        src.buffer = decoded;
         const gain = audioCtx.createGain();
         gain.gain.value = alerte.volume || 1;
-        audioSrc.connect(gain);
+        src.connect(gain);
         gain.connect(audioCtx.destination);
-        audioSrc.start(0);
+        src.start(0);
       }).catch(e => console.log("Audio error:", e));
   }
+
   document.getElementById("alert").classList.add("show");
+
   setTimeout(() => {
-    if (audioSrc) { try { audioSrc.stop(); } catch(e) {} }
-    if (audioCtx) audioCtx.close();
-    const tts = new SpeechSynthesisUtterance(name + " vient de faire un don de " + parseFloat(amount).toFixed(0) + " euros pour les Restaurants du Cœur !");
-    tts.lang = "fr-FR"; tts.rate = 1;
     document.getElementById("alert").classList.remove("show");
     gif.style.display = "none";
-    const lancerTTS = () => {
-      const voices = speechSynthesis.getVoices();
-      const voixF = voices.find(v => v.lang === "fr-FR" && v.name.toLowerCase().includes("female")) || voices.find(v => v.lang === "fr-FR");
-      if (voixF) tts.voice = voixF;
+
+    // TTS après l'alerte
+    setTimeout(() => {
+      const msg = name + " vient de faire un don de " + parseFloat(amount).toFixed(0) + " euros pour les Restaurants du Cœur !";
+      const tts = new SpeechSynthesisUtterance(msg);
+      tts.lang = "fr-FR";
+      tts.rate = 1;
       tts.onend = () => { alertActive = false; };
-      speechSynthesis.speak(tts);
-    };
-    if (speechSynthesis.getVoices().length > 0) {
-      lancerTTS();
-    } else {
-      speechSynthesis.onvoiceschanged = lancerTTS;
-    }
+      tts.onerror = () => { alertActive = false; };
+
+      const trySpeak = () => {
+        const voices = speechSynthesis.getVoices();
+        const voixF = voices.find(v => v.lang.startsWith("fr") && v.name.toLowerCase().includes("female"))
+                   || voices.find(v => v.lang.startsWith("fr"))
+                   || voices[0];
+        if (voixF) tts.voice = voixF;
+        speechSynthesis.cancel();
+        speechSynthesis.speak(tts);
+      };
+
+      if (speechSynthesis.getVoices().length > 0) {
+        trySpeak();
+      } else {
+        speechSynthesis.addEventListener("voiceschanged", trySpeak, { once: true });
+        // Fallback si voiceschanged ne se déclenche pas
+        setTimeout(trySpeak, 1000);
+      }
+    }, 500);
+
   }, duration);
 }
 

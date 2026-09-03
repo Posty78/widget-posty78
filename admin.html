@@ -188,20 +188,21 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
-const ADMIN_USER = "[EMAIL_REDACTED]";
-const ADMIN_PASS = "[PASSWORD_REDACTED]";
+// AUDIT DE SECURITE (03/09/2026) : l'ancien identifiant/mot de passe en dur ici
+// (le vrai email + mot de passe personnel de Jean-Didier) etait visible par
+// n'importe qui sur GitHub, et la base Firestore etait de toute facon grande
+// ouverte en ecriture sans meme passer par ce controle. Les regles Firestore
+// bloquent maintenant TOUTE ecriture (allow write: if false) tant qu'une vraie
+// authentification Firebase n'est pas mise en place pour ce projet - ce panel
+// est donc temporairement en lecture seule (les tests OBS restent fonctionnels,
+// mais "Sauvegarder tout" echouera jusqu'a la migration vers Firebase Auth,
+// comme deja fait pour Seance/Poids/Alimentation/maps.posty78.fr).
 let alertes = [];
 
 window.checkLogin = function() {
-  const u = document.getElementById("login-user").value;
-  const p = document.getElementById("login-pass").value;
-  if (u === ADMIN_USER && p === ADMIN_PASS) {
-    document.getElementById("login-screen").style.display = "none";
-    document.getElementById("admin-screen").style.display = "block";
-    chargerAlertes();
-  } else {
-    document.getElementById("login-error").style.display = "block";
-  }
+  document.getElementById("login-error").textContent =
+    "⚠️ Connexion admin temporairement désactivée (migration sécurité en cours).";
+  document.getElementById("login-error").style.display = "block";
 };
 
 function chargerAlertes() {

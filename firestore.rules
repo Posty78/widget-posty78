@@ -1,0 +1,23 @@
+rules_version = '2';
+// Regles Firestore - projet posty78-widget
+//
+// AUDIT DE SECURITE (03/09/2026) : ce projet n'a jamais eu de fichier de regles
+// commite, et la collection config/* etait donc ouverte en ecriture a QUICONQUE
+// sans authentification (verifie en direct : une ecriture non authentifiee a
+// reussi). Le panel admin (admin.html) ne faisait qu'un controle cote client
+// (email/mot de passe en dur, visible sur GitHub), qui ne protegeait rien du tout
+// cote serveur.
+//
+// Ce projet n'a pas encore de Firebase Authentication configure (aucun compte).
+// En attendant sa mise en place, l'ecriture est totalement fermee cote client :
+// mieux vaut un panel admin temporairement hors service qu'une base de donnees
+// ouverte a tous. Une fois un compte Auth cree, remplacer "if false" par
+// "if request.auth != null && request.auth.uid == '<uid a definir>'".
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /config/{document} {
+      allow read: if true;
+      allow write: if false;
+    }
+  }
+}
